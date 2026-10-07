@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>로그인 · 하루상점</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    .auth-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .btn:disabled { opacity: .6; cursor: wait; }
+    #auth-status { min-height: 1.75em; margin: 18px 0 0; }
+  </style>
+</head>
+<body>
+  <header class="site"><div class="wrap">
+    <a class="brand" href="index.html">하루상점</a>
+    <nav class="site"><a href="index.html">상품</a></nav>
+  </div></header>
+  <main><div class="wrap">
+    <h1>로그인</h1>
+    <form class="pay" id="auth-form" novalidate>
+      <label for="email">이메일</label>
+      <input id="email" name="email" type="email" autocomplete="username">
+      <label for="password">비밀번호</label>
+      <input id="password" name="password" type="password" autocomplete="current-password">
+      <div class="auth-actions">
+        <button class="btn ghost" id="sign-up" type="button" disabled>가입</button>
+        <button class="btn" id="sign-in" type="submit" disabled>로그인</button>
+        <button class="btn ghost" id="sign-out" type="button" disabled>로그아웃</button>
+      </div>
+      <p id="auth-status" role="status" aria-live="polite">인증을 준비하고 있습니다.</p>
+    </form>
+  </div></main>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAwz8FywtpJ20DpWW7Sc3OuvyGm7pDmIpo",
+      authDomain: "haru-shop-4083f.firebaseapp.com",
+      projectId: "haru-shop-4083f",
+      storageBucket: "haru-shop-4083f.firebasestorage.app",
+      messagingSenderId: "1058982124810",
+      appId: "1:1058982124810:web:bc866184877dd494442ef3"
+    };
+
+    const form = document.getElementById("auth-form");
+    const email = document.getElementById("email");
+    const password = document.getElementById("password");
+    const status = document.getElementById("auth-status");
+    const buttons = [...form.querySelectorAll("button")];
+    const auth = getAuth(initializeApp(firebaseConfig));
+    let busy = false;
+
+    async function run(action, successMessage) {
+      if (busy) return;
+      busy = true;
+      buttons.forEach(button => { button.disabled = true; });
+      status.textContent = "처리 중입니다.";
+      try {
+        await action();
+        status.textContent = successMessage;
+      } catch (error) {
+        status.textContent = error.code;
+      } finally {
+        password.value = "";
+        busy = false;
+        buttons.forEach(button => { button.disabled = false; });
+      }
+    }
+
+    document.getElementById("sign-up").addEventListener("click", () => {
+      run(() => createUserWithEmailAndPassword(auth, email.value.trim(), password.value),
+        "가입이 완료되어 로그인되었습니다.");
+    });
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      run(() => signInWithEmailAndPassword(auth, email.value.trim(), password.value),
+        "로그인되었습니다.");
+    });
+    document.getElementById("sign-out").addEventListener("click", () => {
+      run(() => signOut(auth), "로그아웃되었습니다.");
+    });
+
+    status.textContent = "이메일과 비밀번호를 입력해 주세요.";
+    buttons.forEach(button => { button.disabled = false; });
+  </script>
+</body>
+</html>
