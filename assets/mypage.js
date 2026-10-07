@@ -1,4 +1,4 @@
-import { auth, authReady, reload, sendVerificationEmail } from "./auth.js";
+import { auth, authReady, reload, sendVerificationEmail, authErrorMessage } from "./auth.js";
 
 const verification = document.getElementById("email-verification");
 const status = document.getElementById("verification-status");
@@ -36,17 +36,17 @@ button.addEventListener("click", async () => {
   } catch (error) {
     status.textContent = error.code === "auth/too-many-requests"
       ? "잠시 뒤에 다시 눌러 주세요."
-      : error.code;
+      : authErrorMessage(error);
   } finally {
     busy = false;
     button.disabled = false;
   }
 });
 
-refreshVerification().catch(error => { accountStatus.textContent = error.code; });
+refreshVerification().catch(error => { accountStatus.textContent = authErrorMessage(error); });
 // 뒤로 가기로 복원된 마이페이지도 서버에서 인증 여부를 다시 확인한다.
 window.addEventListener("pageshow", event => {
   if (event.persisted) {
-    refreshVerification().catch(error => { accountStatus.textContent = error.code; });
+    refreshVerification().catch(error => { accountStatus.textContent = authErrorMessage(error); });
   }
 });

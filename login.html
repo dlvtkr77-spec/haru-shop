@@ -49,7 +49,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import {
       auth, authReady, createUserWithEmailAndPassword,
-      signInWithEmailAndPassword, logout, returnAfterLogin, sendVerificationEmail
+      signInWithEmailAndPassword, logout, returnAfterLogin, sendVerificationEmail, authErrorMessage
     } from "./assets/auth.js";
 
     const form = document.getElementById("auth-form");
@@ -69,7 +69,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         status.textContent = successMessage;
         if (afterSuccess) afterSuccess();
       } catch (error) {
-        status.textContent = error.code;
+        status.textContent = authErrorMessage(error);
       } finally {
         password.value = "";
         busy = false;
@@ -116,7 +116,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     authReady.then(user => {
       if (user && !busy) returnAfterLogin();
-    }).catch(error => { status.textContent = error.code; });
+    }).catch(error => { status.textContent = authErrorMessage(error); });
 
     status.textContent = "이메일과 비밀번호를 입력해 주세요.";
     buttons.forEach(button => { button.disabled = false; });

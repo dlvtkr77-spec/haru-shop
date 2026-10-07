@@ -15,6 +15,21 @@ const firebaseConfig = {
 export const auth = getAuth(initializeApp(firebaseConfig));
 export { createUserWithEmailAndPassword, signInWithEmailAndPassword, reload };
 
+export function authErrorMessage(error) {
+  switch (error?.code) {
+    case "auth/invalid-credential":
+      return "이메일 또는 비밀번호가 올바르지 않아요. 입력한 내용을 다시 확인해 주세요.";
+    case "auth/email-already-in-use":
+      return "이미 가입된 이메일이에요. 이 이메일로 로그인하거나 다른 이메일로 가입해 주세요.";
+    case "auth/weak-password":
+      return "비밀번호가 보안 조건을 충족하지 않아요. 6자 이상 입력해 주세요.";
+    case "auth/invalid-email":
+      return "이메일 주소 형식이 올바르지 않아요. example@email.com처럼 입력해 주세요.";
+    default:
+      return "문제가 생겼어요. 조금 뒤에 다시 시도해 주세요.";
+  }
+}
+
 export async function sendVerificationEmail(user) {
   auth.languageCode = "ko";
   await sendEmailVerification(user);
@@ -49,8 +64,8 @@ function logoutButton() {
     } catch (error) {
       button.disabled = false;
       const status = document.getElementById("account-status");
-      if (status) status.textContent = error.code;
-      else account.append(document.createTextNode(error.code));
+      if (status) status.textContent = authErrorMessage(error);
+      else account.append(document.createTextNode(authErrorMessage(error)));
     }
   });
   return button;
@@ -96,7 +111,7 @@ export const authReady = new Promise((resolve, reject) => {
     resolve(user);
   }, error => {
     const status = document.getElementById("account-status");
-    if (status) status.textContent = error.code;
+    if (status) status.textContent = authErrorMessage(error);
     reject(error);
   });
 });
