@@ -47,7 +47,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <script type="module">
     import {
       auth, authReady, createUserWithEmailAndPassword,
-      signInWithEmailAndPassword, logout, returnAfterLogin
+      signInWithEmailAndPassword, logout, returnAfterLogin, sendVerificationEmail
     } from "./assets/auth.js";
 
     const form = document.getElementById("auth-form");
@@ -57,7 +57,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     const buttons = [...form.querySelectorAll("button")];
     let busy = false;
 
-    async function run(action, successMessage) {
+    async function run(action, successMessage, afterSuccess) {
       if (busy) return;
       busy = true;
       buttons.forEach(button => { button.disabled = true; });
@@ -65,6 +65,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       try {
         await action();
         status.textContent = successMessage;
+        if (afterSuccess) afterSuccess();
       } catch (error) {
         status.textContent = error.code;
       } finally {
@@ -76,12 +77,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     document.getElementById("sign-up").addEventListener("click", () => {
       run(async () => {
-        await createUserWithEmailAndPassword(auth, email.value.trim(), password.value);
+        const credential = await createUserWithEmailAndPassword(auth, email.value.trim(), password.value);
         window.dataLayer = window.dataLayer || [];
         window.dataLayer.push({ event: "sign_up", method: "email" });
-        returnAfterLogin();
+        await sendVerificationEmail(credential.user);
       },
-        "가입이 완료되어 로그인되었습니다.");
+        "인증 메일을 보냈습니다. 메일함과 스팸함을 확인해 주세요.",
+        () => returnAfterLogin(true));
     });
     form.addEventListener("submit", event => {
       event.preventDefault();
@@ -96,7 +98,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     });
 
     authReady.then(user => {
-      if (user) returnAfterLogin();
+      if (user && !busy) returnAfterLogin();
     }).catch(error => { status.textContent = error.code; });
 
     status.textContent = "이메일과 비밀번호를 입력해 주세요.";

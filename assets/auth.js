@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword, signOut
+  signInWithEmailAndPassword, signOut, sendEmailVerification, reload
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -13,7 +13,12 @@ const firebaseConfig = {
     appId: "1:1058982124810:web:bc866184877dd494442ef3"
   };
 export const auth = getAuth(initializeApp(firebaseConfig));
-export { createUserWithEmailAndPassword, signInWithEmailAndPassword };
+export { createUserWithEmailAndPassword, signInWithEmailAndPassword, reload };
+
+export async function sendVerificationEmail(user) {
+  auth.languageCode = "ko";
+  await sendEmailVerification(user);
+}
 
 const nav = document.querySelector("header.site nav.site");
 const account = document.createElement("span");
@@ -58,10 +63,10 @@ function link(text, href) {
   return a;
 }
 
-export function returnAfterLogin() {
+export function returnAfterLogin(verificationSent = false) {
   // 돌아갈 곳은 이 사이트의 마이페이지만 허용한다.
   if (new URLSearchParams(location.search).get("next") === "mypage.html") {
-    location.replace("mypage.html");
+    location.replace(verificationSent ? "mypage.html?verification=sent" : "mypage.html");
   }
 }
 
