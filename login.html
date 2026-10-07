@@ -40,11 +40,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <button class="btn" id="sign-in" type="submit" disabled>로그인</button>
         <button class="btn ghost" id="sign-out" type="button" disabled>로그아웃</button>
       </div>
+      <p><a href="#" id="reset-password">비밀번호를 잊으셨나요?</a></p>
       <p><small>[같이 쓰는 컴퓨터에서는, 다 보신 뒤 로그아웃을 눌러 주세요.]</small></p>
       <p id="auth-status" role="status" aria-live="polite">인증을 준비하고 있습니다.</p>
     </form>
   </div></main>
   <script type="module">
+    import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import {
       auth, authReady, createUserWithEmailAndPassword,
       signInWithEmailAndPassword, logout, returnAfterLogin, sendVerificationEmail
@@ -95,6 +97,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     });
     document.getElementById("sign-out").addEventListener("click", () => {
       run(() => logout(), "로그아웃되었습니다.");
+    });
+
+    document.getElementById("reset-password").addEventListener("click", event => {
+      event.preventDefault();
+      if (busy) return;
+      const address = window.prompt("비밀번호 재설정 메일을 받을 이메일을 입력해 주세요.", email.value.trim());
+      if (address === null) return;
+      run(async () => {
+        auth.languageCode = "ko";
+        try {
+          await sendPasswordResetEmail(auth, address.trim());
+        } catch (error) {
+          if (error.code !== "auth/user-not-found") throw error;
+        }
+      }, "메일을 보냈습니다. 가입된 주소라면 곧 도착합니다.");
     });
 
     authReady.then(user => {
