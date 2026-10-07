@@ -3,11 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>결제 — 하루상점</title>
-<meta name="description" content="주문을 마칩니다">
+<title>마이페이지 · 하루상점</title>
 <link rel="stylesheet" href="assets/style.css">
 <link rel="stylesheet" href="assets/auth.css">
-
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -15,15 +13,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-KDFLLM3W');</script>
 <!-- End Google Tag Manager -->
-
 </head>
 <body>
-
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KDFLLM3W"
 height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
-
 <header class="site"><div class="wrap">
   <a class="brand" href="index.html">하루상점</a>
   <nav class="site">
@@ -33,20 +28,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <a href="cart.html">장바구니<span class="cart-count">0</span></a>
   </nav>
 </div></header>
-
 <main><div class="wrap">
-  <h2>결제</h2>
-  <p class="lead">연습용 화면입니다. 실제로 돈이 나가지 않습니다.</p>
-  <form class="pay" id="pay-form">
-    <label for="buyer">받는 분</label>
-    <input id="buyer" name="buyer" required placeholder="이름">
-    <label for="addr">주소</label>
-    <input id="addr" name="addr" required placeholder="받으실 주소">
-    <label for="phone">연락처</label>
-    <input id="phone" name="phone" required placeholder="숫자만">
-    <div class="total">합계 <span id="pay-total">0원</span></div>
-    <button class="btn" type="submit">결제하기</button>
-  </form>
+  <section id="mypage-content" hidden>
+    <h1>마이페이지</h1>
+    <p>이메일: <span id="mypage-email"></span></p>
+    <div id="mypage-logout"></div>
+  </section>
+  <p id="account-status" role="status" aria-live="polite"></p>
 </div></main>
 <footer class="site"><div class="wrap"></div></footer>
 <script src="assets/shop.js"></script>

@@ -6,6 +6,7 @@
 <title>내 마음대로 상점</title>
 <meta name="description" content="주인장이랑 취향이 비슷한 사람을 위한 내 마음대로 상점. 제가 팔고 싶은 거 팝니다.">
 <link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/auth.css">
 
 <!-- Google Tag Manager -->
 <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
@@ -46,25 +47,6 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <footer class="site"><div class="wrap"></div></footer>
 <script src="assets/shop.js"></script>
 <script src="assets/app.js"></script>
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  const firebaseConfig = {
-    apiKey: "AIzaSyAwz8FywtpJ20DpWW7Sc3OuvyGm7pDmIpo",
-    authDomain: "haru-shop-4083f.firebaseapp.com",
-    projectId: "haru-shop-4083f",
-    storageBucket: "haru-shop-4083f.firebasestorage.app",
-    messagingSenderId: "1058982124810",
-    appId: "1:1058982124810:web:bc866184877dd494442ef3"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  console.log("Firebase 연결:", app.options.projectId);
-</script>
+<script type="module" src="assets/auth.js"></script>
 </body>
 </html>

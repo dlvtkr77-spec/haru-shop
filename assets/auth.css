@@ -1,0 +1,5 @@
+header.site .wrap { height: auto; min-height: 66px; flex-wrap: wrap; padding-top: 12px; padding-bottom: 12px; }
+nav.site { flex-wrap: wrap; align-items: center; }
+.header-account { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.account-email { overflow-wrap: anywhere; }
+.account-logout { padding: 5px 12px; font-size: 14px; }

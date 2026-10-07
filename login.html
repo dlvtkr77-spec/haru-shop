@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>로그인 · 하루상점</title>
   <link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/auth.css">
   <style>
     .auth-actions { display: flex; flex-wrap: wrap; gap: 10px; }
     .btn:disabled { opacity: .6; cursor: wait; }
@@ -43,29 +44,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </form>
   </div></main>
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
     import {
-      getAuth,
-      createUserWithEmailAndPassword,
-      signInWithEmailAndPassword,
-      signOut
-    } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyAwz8FywtpJ20DpWW7Sc3OuvyGm7pDmIpo",
-      authDomain: "haru-shop-4083f.firebaseapp.com",
-      projectId: "haru-shop-4083f",
-      storageBucket: "haru-shop-4083f.firebasestorage.app",
-      messagingSenderId: "1058982124810",
-      appId: "1:1058982124810:web:bc866184877dd494442ef3"
-    };
+      auth, authReady, createUserWithEmailAndPassword,
+      signInWithEmailAndPassword, logout, returnAfterLogin
+    } from "./assets/auth.js";
 
     const form = document.getElementById("auth-form");
     const email = document.getElementById("email");
     const password = document.getElementById("password");
     const status = document.getElementById("auth-status");
     const buttons = [...form.querySelectorAll("button")];
-    const auth = getAuth(initializeApp(firebaseConfig));
     let busy = false;
 
     async function run(action, successMessage) {
@@ -90,17 +78,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         await createUserWithEmailAndPassword(auth, email.value.trim(), password.value);
         window.dataLayer = window.dataLayer || [];
         window.dataLayer.push({ event: "sign_up", method: "email" });
+        returnAfterLogin();
       },
         "가입이 완료되어 로그인되었습니다.");
     });
     form.addEventListener("submit", event => {
       event.preventDefault();
-      run(() => signInWithEmailAndPassword(auth, email.value.trim(), password.value),
+      run(async () => {
+        await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
+        returnAfterLogin();
+      },
         "로그인되었습니다.");
     });
     document.getElementById("sign-out").addEventListener("click", () => {
-      run(() => signOut(auth), "로그아웃되었습니다.");
+      run(() => logout(), "로그아웃되었습니다.");
     });
+
+    authReady.then(user => {
+      if (user) returnAfterLogin();
+    }).catch(error => { status.textContent = error.code; });
 
     status.textContent = "이메일과 비밀번호를 입력해 주세요.";
     buttons.forEach(button => { button.disabled = false; });
