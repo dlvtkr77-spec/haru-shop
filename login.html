@@ -38,6 +38,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="auth-actions">
         <button class="btn ghost" id="sign-up" type="button" disabled>가입</button>
         <button class="btn" id="sign-in" type="submit" disabled>로그인</button>
+        <button class="btn ghost" id="google-sign-in" type="button" disabled>Google로 계속하기</button>
         <button class="btn ghost" id="sign-out" type="button" disabled>로그아웃</button>
       </div>
       <p><a href="#" id="reset-password">비밀번호를 잊으셨나요?</a></p>
@@ -49,7 +50,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import {
       auth, authReady, createUserWithEmailAndPassword,
-      signInWithEmailAndPassword, logout, returnAfterLogin, sendVerificationEmail, authErrorMessage
+      signInWithEmailAndPassword, signInWithGoogle, logout, returnAfterLogin, sendVerificationEmail, authErrorMessage
     } from "./assets/auth.js";
 
     const form = document.getElementById("auth-form");
@@ -94,6 +95,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         returnAfterLogin();
       },
         "로그인되었습니다.");
+    });
+    document.getElementById("google-sign-in").addEventListener("click", () => {
+      run(() => signInWithGoogle(), "로그인되었습니다.", () => returnAfterLogin());
     });
     document.getElementById("sign-out").addEventListener("click", () => {
       run(() => logout(), "로그아웃되었습니다.");

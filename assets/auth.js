@@ -1,7 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
-  signInWithEmailAndPassword, signOut, sendEmailVerification, reload
+  signInWithEmailAndPassword, signOut, sendEmailVerification, reload,
+  GoogleAuthProvider, signInWithPopup
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 const firebaseConfig = {
@@ -15,8 +16,23 @@ const firebaseConfig = {
 export const auth = getAuth(initializeApp(firebaseConfig));
 export { createUserWithEmailAndPassword, signInWithEmailAndPassword, reload };
 
+export function signInWithGoogle() {
+  auth.languageCode = "ko";
+  return signInWithPopup(auth, new GoogleAuthProvider());
+}
+
 export function authErrorMessage(error) {
   switch (error?.code) {
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Google 로그인이 취소되었습니다. 다시 눌러 주세요.";
+    case "auth/popup-blocked":
+      return "팝업이 차단되었습니다. 이 사이트의 팝업을 허용한 뒤 다시 눌러 주세요.";
+    case "auth/account-exists-with-different-credential":
+      return "이미 다른 방법으로 가입된 이메일이에요. 기존 로그인 방법으로 들어가 주세요.";
+    case "auth/operation-not-allowed":
+    case "auth/unauthorized-domain":
+      return "Google 로그인 설정을 확인해야 합니다. 관리자에게 문의해 주세요.";
     case "auth/invalid-credential":
       return "이메일 또는 비밀번호가 올바르지 않아요. 입력한 내용을 다시 확인해 주세요.";
     case "auth/email-already-in-use":
@@ -95,7 +111,7 @@ export const authReady = new Promise((resolve, reject) => {
     if (user) {
       const email = document.createElement("span");
       email.className = "account-email";
-      email.textContent = user.email || "";
+      email.textContent = user.displayName || user.email || "";
       account.append(email, link("마이페이지", "mypage.html"), logoutButton());
     } else {
       account.append(link("로그인", "login.html"));
@@ -106,6 +122,9 @@ export const authReady = new Promise((resolve, reject) => {
         location.replace("login.html?next=mypage.html");
       } else if (user) {
         document.getElementById("mypage-email").textContent = user.email || "";
+        const name = document.getElementById("mypage-name");
+        name.textContent = user.displayName || "";
+        name.parentElement.hidden = !user.displayName;
       }
     }
     resolve(user);
