@@ -78,29 +78,37 @@ function paintChrome() {
   if (foot) foot.textContent = SHOP.name + " · " + SHOP.tagline;
 }
 
+// Firestore 문자열은 HTML로 해석하지 않습니다.
+function escapeProductText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+const stockText = stock => stock === 0 ? "품절" : `재고 ${stock}개`;
+
 /* --- 상품 목록 --- */
-function paintList() {
+function paintList(products) {
   const box = document.querySelector("#product-list");
   if (!box) return;
 
   document.querySelector("#hero-title").textContent = SHOP.name;
   document.querySelector("#hero-tagline").textContent = SHOP.tagline;
 
-  box.innerHTML = PRODUCTS.map(p => `
+  box.innerHTML = products.map(p => `
     <a class="card" href="product.html?id=${p.id}">
       <div class="thumb">${p.emoji}</div>
-      <h3>${p.name}</h3>
-      <p class="sum">${p.summary}</p>
+      <h3>${escapeProductText(p.name)}</h3>
+      <p class="sum">${escapeProductText(p.summary)}</p>
       <div class="price">${won(p.price)}</div>
+      <p>${stockText(p.stock)}</p>
     </a>`).join("");
 }
 
 /* --- 상품 상세 --- */
-function paintDetail() {
+function paintDetail(p) {
   const box = document.querySelector("#product-detail");
   if (!box) return;
 
-  const p = findProduct(qs("id"));
   if (!p) { box.innerHTML = '<p class="empty">그런 상품이 없습니다.</p>'; return; }
 
   // 통로가 이미 있으면 그대로 쓰고, 없을 때만 새로 만든다
@@ -126,8 +134,10 @@ function paintDetail() {
   box.innerHTML = `
     <div class="thumb">${p.emoji}</div>
     <div>
-      <h1>${p.name}</h1>
+      <h1>${escapeProductText(p.name)}</h1>
       <div class="price">${won(p.price)}</div>
+      <p>${escapeProductText(p.summary)}</p>
+      <p>${stockText(p.stock)}</p>
       <div class="body prose">${p.detail.map(t => `<p>${t}</p>`).join("")}</div>
       <button class="btn" id="add-to-cart">장바구니에 담기</button>
     </div>`;
@@ -257,8 +267,6 @@ function paintProse() {
 
 document.addEventListener("DOMContentLoaded", () => {
   paintChrome();
-  paintList();
-  paintDetail();
   paintCart();
   paintCheckout();
   paintProse();
