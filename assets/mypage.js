@@ -4,6 +4,17 @@ import { getFirestore, collection, query, where, onSnapshot } from "https://www.
 const ordersList = document.getElementById("my-orders");
 const ordersStatus = document.getElementById("orders-status");
 const ordersStopped = document.getElementById("orders-stopped");
+const orderSteps = [
+  ["paid", "결제 완료"],
+  ["preparing", "상품 준비 중"],
+  ["shipped", "배송 중"],
+  ["delivered", "배송 완료"]
+];
+
+function orderStatusLabel(status) {
+  if (status === "canceled") return "주문 취소";
+  return orderSteps.find(([value]) => value === status)?.[1] ?? "확인 중";
+}
 
 function orderDate(value) {
   if (value == null) return null;
@@ -21,12 +32,27 @@ function renderOrders(snapshot) {
       ["주문한 날", orderDate(order.createdAt)?.toLocaleDateString("ko-KR") ?? "날짜 확인 중"],
       ["상품 이름", Array.isArray(order.items) ? order.items.map(item => item.name ?? item.item_name ?? "상품명 없음").join(", ") : (order.productName ?? "상품명 없음")],
       ["합계", typeof order.totalPrice === "number" ? `${order.totalPrice.toLocaleString("ko-KR")}원` : (order.totalPrice ?? "합계 없음")],
-      ["status", order.status ?? ""]
+      ["주문 상태", orderStatusLabel(order.status)]
     ];
     for (const [label, value] of details) {
       const line = document.createElement("p");
       line.textContent = `${label}: ${value}`;
       row.append(line);
+    }
+    if (order.status !== "canceled") {
+      const steps = document.createElement("ol");
+      steps.className = "order-steps";
+      steps.setAttribute("aria-label", "주문 진행 단계");
+      for (const [value, label] of orderSteps) {
+        const step = document.createElement("li");
+        step.textContent = label;
+        if (order.status === value) {
+          step.className = "current";
+          step.setAttribute("aria-current", "step");
+        }
+        steps.append(step);
+      }
+      row.append(steps);
     }
     return row;
   });
