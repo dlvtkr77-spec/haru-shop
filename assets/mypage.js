@@ -19,7 +19,7 @@ function renderOrders(snapshot) {
     const details = [
       ["주문한 날", orderDate(order.createdAt)?.toLocaleDateString("ko-KR") ?? "날짜 확인 중"],
       ["상품 이름", Array.isArray(order.items) ? order.items.map(item => item.name ?? item.item_name ?? "상품명 없음").join(", ") : (order.productName ?? "상품명 없음")],
-      ["합계", typeof order.total === "number" ? `${order.total.toLocaleString("ko-KR")}원` : (order.total ?? "합계 없음")],
+      ["합계", typeof order.totalPrice === "number" ? `${order.totalPrice.toLocaleString("ko-KR")}원` : (order.totalPrice ?? "합계 없음")],
       ["status", order.status ?? ""]
     ];
     for (const [label, value] of details) {
