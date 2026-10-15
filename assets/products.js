@@ -1,7 +1,7 @@
 import { auth } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
-  getFirestore, collection, getDocsFromServer,
+  getFirestore, collection, query, where, orderBy, limit, getDocsFromServer,
   doc, getDocFromServer, writeBatch, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
@@ -28,7 +28,12 @@ async function loadProducts() {
   status.textContent = "상품을 불러오고 있습니다.";
   try {
     if (list) {
-      const snapshot = await getDocsFromServer(collection(db, "products"));
+      const snapshot = await getDocsFromServer(query(
+        collection(db, "products"),
+        where("isVisible", "==", true),
+        orderBy("price", "asc"),
+        limit(3)
+      ));
       countReads(snapshot.size);
       paintList(snapshot.docs.map(productFromDocument));
       status.textContent = snapshot.empty ? "상품이 없습니다." : "";
@@ -51,7 +56,12 @@ async function loadProducts() {
       status.textContent = "";
     }
   } catch (error) {
-    status.textContent = String(error);
+    if (list) {
+      console.error(error);
+      status.textContent = "목록을 불러오지 못했습니다";
+    } else {
+      status.textContent = String(error);
+    }
   }
 }
 
