@@ -1,8 +1,8 @@
-import { auth } from "./auth.js";
+import { auth, authReady } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, collection, query, where, orderBy, limit, startAfter, getDocsFromServer,
-  doc, getDocFromServer, writeBatch, serverTimestamp
+  doc, getDocFromServer, writeBatch, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const db = getFirestore(auth.app);
@@ -11,6 +11,10 @@ const detail = document.getElementById("product-detail");
 const status = document.getElementById("product-status");
 const counter = document.getElementById("product-read-count");
 const loadMore = document.getElementById("load-more-products");
+const orderNow = document.getElementById("order-now");
+const orderStatus = document.getElementById("order-status");
+let detailProductId = null;
+let ordering = false;
 let lastProduct = null;
 let loadingProducts = false;
 let readCount = 0;
@@ -47,6 +51,8 @@ async function loadProducts(append = false) {
       if (loadMore) loadMore.hidden = snapshot.size < 3;
       status.textContent = snapshot.empty && !append ? "상품이 없습니다." : "";
     } else if (detail) {
+      detailProductId = null;
+      if (orderNow) orderNow.hidden = true;
       const id = qs("id");
       if (!id || id.includes("/")) {
         paintDetail(null);
@@ -61,6 +67,10 @@ async function loadProducts(append = false) {
           if (local) Object.assign(local, product);
         }
         paintDetail(product);
+        if (product && orderNow) {
+          detailProductId = product.id;
+          orderNow.hidden = false;
+        }
       }
       status.textContent = "";
     }
@@ -78,6 +88,46 @@ async function loadProducts(append = false) {
 }
 
 if (loadMore) loadMore.addEventListener("click", () => loadProducts(true));
+
+if (orderNow) orderNow.addEventListener("click", async () => {
+  if (ordering || !detailProductId) return;
+  ordering = true;
+  orderNow.disabled = true;
+  orderStatus.textContent = "";
+  try {
+    await authReady;
+    const user = auth.currentUser;
+    if (!user) {
+      orderStatus.textContent = "로그인이 필요합니다";
+      return;
+    }
+    const productRef = doc(db, "products", detailProductId);
+    const orderRef = doc(collection(db, "orders"));
+    const ordered = await runTransaction(db, async transaction => {
+      const snapshot = await transaction.get(productRef);
+      if (!snapshot.exists()) throw new Error("상품 문서가 없습니다.");
+      const product = snapshot.data();
+      if (!(product.stock >= 1)) return false;
+      transaction.set(orderRef, {
+        userId: user.uid,
+        items: [{
+          productId: snapshot.id, name: product.name, price: product.price, quantity: 1
+        }],
+        totalPrice: product.price * 1,
+        status: "paid",
+        createdAt: serverTimestamp()
+      });
+      transaction.update(productRef, { stock: product.stock - 1 });
+      return true;
+    });
+    orderStatus.textContent = ordered ? "주문했습니다." : "재고가 없습니다";
+  } catch (error) {
+    orderStatus.textContent = String(error);
+  } finally {
+    ordering = false;
+    orderNow.disabled = false;
+  }
+});
 
 const upload = document.getElementById("upload-products");
 if (upload) {
