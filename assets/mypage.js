@@ -3,6 +3,7 @@ import { getFirestore, collection, query, where, onSnapshot } from "https://www.
 
 const ordersList = document.getElementById("my-orders");
 const ordersStatus = document.getElementById("orders-status");
+const ordersStopped = document.getElementById("orders-stopped");
 
 function orderDate(value) {
   if (value == null) return null;
@@ -37,13 +38,29 @@ function renderOrders(snapshot) {
 authReady.then(user => {
   if (!user) return;
   const ordersQuery = query(collection(getFirestore(auth.app), "orders"), where("userId", "==", user.uid));
-  const unsubscribe = onSnapshot(ordersQuery, renderOrders, error => {
+  let stopped = false;
+  const unsubscribe = onSnapshot(ordersQuery, snapshot => {
+    renderOrders(snapshot);
+    const allFinished = !snapshot.empty && snapshot.docs.every(doc => {
+      const status = doc.data().status;
+      return status === "delivered" || status === "canceled";
+    });
+    if (allFinished && !stopped) {
+      unsubscribe();
+      stopped = true;
+      ordersStopped.textContent = "[모든 주문이 끝나 실시간 확인을 멈췄습니다. 새로 고치면 다시 확인합니다.]";
+      console.log("[그만 듣기] 모든 주문이 끝나 주문 리스너를 해제했습니다.");
+    }
+  }, error => {
     console.log(`[주문 알림] 오류: ${error.code ?? "unknown"}`);
     ordersList.replaceChildren();
     ordersStatus.textContent = "주문을 불러오지 못했습니다. 잠시 뒤에 다시 시도해 주세요.";
   });
   window.addEventListener("pagehide", event => {
-    if (!event.persisted) unsubscribe();
+    if (!event.persisted && !stopped) {
+      unsubscribe();
+      stopped = true;
+    }
   });
 }).catch(() => {
   ordersStatus.textContent = "로그인 정보를 확인하지 못했습니다.";
