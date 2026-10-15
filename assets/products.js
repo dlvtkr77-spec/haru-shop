@@ -1,7 +1,7 @@
 import { auth } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
-  getFirestore, collection, query, where, orderBy, limit, getDocsFromServer,
+  getFirestore, collection, query, where, orderBy, limit, startAfter, getDocsFromServer,
   doc, getDocFromServer, writeBatch, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
@@ -10,6 +10,9 @@ const list = document.getElementById("product-list");
 const detail = document.getElementById("product-detail");
 const status = document.getElementById("product-status");
 const counter = document.getElementById("product-read-count");
+const loadMore = document.getElementById("load-more-products");
+let lastProduct = null;
+let loadingProducts = false;
 let readCount = 0;
 function countReads(count) {
   readCount += count;
@@ -24,7 +27,10 @@ function productFromDocument(snapshot) {
     emoji: local?.emoji ?? "", detail: local?.detail ?? []
   };
 }
-async function loadProducts() {
+async function loadProducts(append = false) {
+  if (loadingProducts) return;
+  loadingProducts = true;
+  if (loadMore) loadMore.disabled = true;
   status.textContent = "상품을 불러오고 있습니다.";
   try {
     if (list) {
@@ -32,11 +38,14 @@ async function loadProducts() {
         collection(db, "products"),
         where("isVisible", "==", true),
         orderBy("price", "asc"),
+        ...(append && lastProduct ? [startAfter(lastProduct)] : []),
         limit(3)
       ));
       countReads(snapshot.size);
-      paintList(snapshot.docs.map(productFromDocument));
-      status.textContent = snapshot.empty ? "상품이 없습니다." : "";
+      paintList(snapshot.docs.map(productFromDocument), append);
+      lastProduct = snapshot.docs[snapshot.docs.length - 1] ?? lastProduct;
+      if (loadMore) loadMore.hidden = snapshot.size < 3;
+      status.textContent = snapshot.empty && !append ? "상품이 없습니다." : "";
     } else if (detail) {
       const id = qs("id");
       if (!id || id.includes("/")) {
@@ -62,8 +71,13 @@ async function loadProducts() {
     } else {
       status.textContent = String(error);
     }
+  } finally {
+    loadingProducts = false;
+    if (loadMore) loadMore.disabled = false;
   }
 }
+
+if (loadMore) loadMore.addEventListener("click", () => loadProducts(true));
 
 const upload = document.getElementById("upload-products");
 if (upload) {

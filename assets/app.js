@@ -87,14 +87,14 @@ function escapeProductText(value) {
 const stockText = stock => stock === 0 ? "품절" : `재고 ${stock}개`;
 
 /* --- 상품 목록 --- */
-function paintList(products) {
+function paintList(products, append = false) {
   const box = document.querySelector("#product-list");
   if (!box) return;
 
   document.querySelector("#hero-title").textContent = SHOP.name;
   document.querySelector("#hero-tagline").textContent = SHOP.tagline;
 
-  box.innerHTML = products.map(p => `
+  const html = products.map(p => `
     <a class="card" href="product.html?id=${p.id}">
       <div class="thumb">${p.emoji}</div>
       <h3>${escapeProductText(p.name)}</h3>
@@ -102,6 +102,8 @@ function paintList(products) {
       <div class="price">${won(p.price)}</div>
       <p>${stockText(p.stock)}</p>
     </a>`).join("");
+  if (append) box.insertAdjacentHTML("beforeend", html);
+  else box.innerHTML = html;
 }
 
 /* --- 상품 상세 --- */

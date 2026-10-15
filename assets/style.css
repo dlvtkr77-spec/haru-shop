@@ -49,6 +49,7 @@ h2{font-size:22px;margin:0 0 18px;letter-spacing:-.01em}
   border:0;border-radius:8px;padding:13px 26px;font-size:15px;font-weight:600;
   cursor:pointer;text-decoration:none;font-family:inherit}
 .btn:hover{filter:brightness(1.08)}
+.btn[hidden]{display:none}
 .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
 
 table.cart{width:100%;border-collapse:collapse;background:var(--card);
