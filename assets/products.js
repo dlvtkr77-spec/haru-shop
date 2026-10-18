@@ -5,7 +5,10 @@ import {
   doc, getDocFromServer, writeBatch, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
+import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
+
 const db = getFirestore(auth.app);
+const storage = getStorage(auth.app);
 const list = document.getElementById("product-list");
 const detail = document.getElementById("product-detail");
 const status = document.getElementById("product-status");
@@ -27,7 +30,7 @@ function productFromDocument(snapshot) {
   const data = snapshot.data();
   return {
     id: snapshot.id, name: data.name, price: data.price,
-    summary: data.summary, stock: data.stock,
+    summary: data.summary, stock: data.stock, imagePath: data.imagePath,
     emoji: local?.emoji ?? "", detail: local?.detail ?? []
   };
 }
@@ -46,7 +49,16 @@ async function loadProducts(append = false) {
         limit(3)
       ));
       countReads(snapshot.size);
-      paintList(snapshot.docs.map(productFromDocument), append);
+      const products = snapshot.docs.map(productFromDocument);
+      await Promise.all(products.map(async product => {
+        if (!product.imagePath) return;
+        try {
+          product.imageUrl = await getDownloadURL(ref(storage, product.imagePath));
+        } catch (error) {
+          console.error(error);
+        }
+      }));
+      paintList(products, append);
       lastProduct = snapshot.docs[snapshot.docs.length - 1] ?? lastProduct;
       if (loadMore) loadMore.hidden = snapshot.size < 3;
       status.textContent = snapshot.empty && !append ? "상품이 없습니다." : "";

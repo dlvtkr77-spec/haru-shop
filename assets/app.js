@@ -96,7 +96,7 @@ function paintList(products, append = false) {
 
   const html = products.map(p => `
     <a class="card" href="product.html?id=${p.id}">
-      <div class="thumb">${p.emoji}</div>
+      <div class="thumb">${p.imageUrl ? `<img src="${escapeProductText(p.imageUrl)}" alt="${escapeProductText(p.name)}" style="display:block;width:100%;height:200px;object-fit:contain;">` : p.emoji}</div>
       <h3>${escapeProductText(p.name)}</h3>
       <p class="sum">${escapeProductText(p.summary)}</p>
       <div class="price">${won(p.price)}</div>

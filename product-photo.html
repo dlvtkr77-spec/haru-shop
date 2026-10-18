@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>상품 사진 올리기 · 하루상점</title>
+<link rel="stylesheet" href="assets/style.css">
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KDFLLM3W');</script>
+<!-- End Google Tag Manager --><!-- 태그 관리자 코드가 들어갈 자리 (머리) -->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KDFLLM3W"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) --><!-- 태그 관리자 코드가 들어갈 자리 (몸통 맨 위) -->
+
+<main><div class="wrap">
+  <p id="photo-login" hidden>로그인해 주세요.</p>
+  <section id="photo-content" hidden>
+    <h1>상품 사진 올리기</h1>
+    <form id="photo-form">
+      <p><label for="photo-product">상품 (문서 ID)</label><br>
+      <select id="photo-product" required disabled></select></p>
+      <p><label for="photo-file">사진 파일</label><br>
+      <input id="photo-file" type="file" accept="image/*" required></p>
+      <button class="btn" id="photo-submit" type="submit" disabled>사진 올리기</button>
+    </form>
+  </section>
+  <p id="photo-status" role="status" style="white-space: pre-wrap; overflow-wrap: anywhere;"></p>
+</div></main>
+<script type="module" src="assets/product-photo.js"></script>
+</body>
+</html>
