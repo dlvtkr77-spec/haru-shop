@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>규칙 확인 · 하루상점</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  [hidden] { display: none !important; }
+  pre, td, #rules-identity { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .rules-table { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+  button:disabled { opacity: .6; cursor: wait; }
+</style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KDFLLM3W');</script>
+<!-- End Google Tag Manager --><!-- 태그 관리자 코드가 들어갈 자리 (머리) -->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KDFLLM3W"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) --><!-- 태그 관리자 코드가 들어갈 자리 (몸통 맨 위) -->
+
+<main><div class="wrap">
+  <p id="rules-login" hidden>로그인해 주세요.</p>
+  <section id="rules-content" hidden>
+    <p id="rules-identity"></p>
+    <h1>규칙 확인</h1>
+    <section>
+      <button class="btn" id="read-orders" type="button">주문 전체 읽기</button>
+      <pre id="read-result" role="status" aria-live="polite"></pre>
+      <div class="rules-table" id="orders-table" hidden>
+        <table>
+          <thead><tr><th scope="col">문서 ID</th><th scope="col">userId</th><th scope="col">totalPrice</th></tr></thead>
+          <tbody id="orders-rows"></tbody>
+        </table>
+      </div>
+    </section>
+    <section>
+      <button class="btn" id="edit-order" type="button">내 주문 금액 고치기</button>
+      <pre id="edit-result" role="status" aria-live="polite"></pre>
+    </section>
+    <section>
+      <button class="btn" id="edit-product" type="button">상품 가격 0원으로</button>
+      <pre id="product-result" role="status" aria-live="polite"></pre>
+    </section>
+  </section>
+  <pre id="rules-error" role="alert"></pre>
+</div></main>
+<script type="module" src="assets/rules-check.js"></script>
+</body>
+</html>
