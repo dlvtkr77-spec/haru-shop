@@ -220,7 +220,7 @@ function paintCheckout() {
   const sum = document.querySelector("#pay-total");
   if (sum) sum.textContent = won(Cart.total());
 
-  form.addEventListener("submit", e => {
+  form.addEventListener("submit", async e => {
     e.preventDefault();
 
     // ▼ 여기에 「결제를 마쳤다」를 알리는 코드가 들어갑니다 (뒤 수업에서)
@@ -253,8 +253,38 @@ function paintCheckout() {
       }
     });
 
-    Cart.clear();
-    location.href = "done.html";
+    const paymentId = "HARU-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+    const paymentIdLine = document.querySelector("#payment-id");
+    const resultBox = document.querySelector("#payment-result");
+    paymentIdLine.textContent = "paymentId: " + paymentId;
+    paymentIdLine.hidden = false;
+    resultBox.textContent = "";
+    resultBox.hidden = true;
+
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      const firstProduct = findProduct(paidItems[0]?.id);
+      const result = await window.PortOne.requestPayment({
+        storeId: "store-e3405a57-ad38-49aa-abae-f854b4d1537a",
+        channelKey: "channel-key-1ca58279-6f71-4446-8643-6a05079a8a5f",
+        paymentId,
+        orderName: firstProduct
+          ? firstProduct.name + (paidItems.length > 1 ? ` 외 ${paidItems.length - 1}건` : "")
+          : "",
+        totalAmount: paidTotal,
+        currency: "CURRENCY_KRW",
+        payMethod: "CARD"
+      });
+      resultBox.textContent = typeof result === "string" ? result : String(JSON.stringify(result, null, 2));
+    } catch (error) {
+      resultBox.textContent = error instanceof Error
+        ? error.message
+        : typeof error === "string" ? error : String(JSON.stringify(error, null, 2));
+    } finally {
+      resultBox.hidden = false;
+      button.disabled = false;
+    }
   });
 }
 
