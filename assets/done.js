@@ -23,12 +23,6 @@ async function receivePayment() {
       return;
     }
 
-    const completedKey = "haru_order_completed:" + user.uid + ":" + paymentId;
-    if (localStorage.getItem(completedKey) === "1") {
-      showSuccess();
-      return;
-    }
-
     const items = Cart.read().map(i => {
       const product = findProduct(i.id);
       return {
@@ -44,9 +38,13 @@ async function receivePayment() {
       createdAt: serverTimestamp(), paymentId
     });
 
-    localStorage.setItem(completedKey, "1");
-    Cart.clear();
-    paintChrome();
+    let cartError;
+    try {
+      Cart.clear();
+      paintChrome();
+    } catch (error) {
+      cartError = error;
+    }
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({ ecommerce: null });
     window.dataLayer.push({
@@ -60,6 +58,7 @@ async function receivePayment() {
       }
     });
     showSuccess();
+    if (cartError) result.textContent += "\n" + String(cartError);
   } catch (error) {
     result.textContent = String(error);
   }

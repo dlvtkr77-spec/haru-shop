@@ -259,9 +259,13 @@ function paintCheckout() {
         location.href = doneUrl.href;
       }
     } catch (error) {
-      resultBox.textContent = error instanceof Error
+      const message = error instanceof Error
         ? String(error)
         : typeof error === "string" ? error : String(JSON.stringify(error, null, 2));
+      doneUrl.searchParams.set("paymentId", paymentId);
+      doneUrl.searchParams.set("code", error?.code ?? "PAYMENT_REQUEST_ERROR");
+      doneUrl.searchParams.set("message", error?.message ?? message);
+      location.href = doneUrl.href;
     } finally {
       resultBox.hidden = false;
       button.disabled = false;
