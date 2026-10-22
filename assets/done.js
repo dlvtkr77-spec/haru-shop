@@ -1,6 +1,6 @@
 import { auth, authReady } from "./auth.js";
 import {
-  getFirestore, doc, runTransaction, serverTimestamp
+  getFirestore, doc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const params = new URLSearchParams(location.search);
@@ -23,6 +23,12 @@ async function receivePayment() {
       return;
     }
 
+    const completedKey = "haru_order_completed:" + user.uid + ":" + paymentId;
+    if (localStorage.getItem(completedKey) === "1") {
+      showSuccess();
+      return;
+    }
+
     const items = Cart.read().map(i => {
       const product = findProduct(i.id);
       return {
@@ -33,39 +39,37 @@ async function receivePayment() {
     const totalPrice = Cart.total();
     const db = getFirestore(auth.app);
     const orderRef = doc(db, "orders", paymentId);
-    const created = await runTransaction(db, async transaction => {
-      const existing = await transaction.get(orderRef);
-      if (existing.exists()) return false;
-      transaction.set(orderRef, {
-        userId: user.uid, items, totalPrice, status: "paid",
-        createdAt: serverTimestamp(), paymentId
-      });
-      return true;
+    await setDoc(orderRef, {
+      userId: user.uid, items, totalPrice, status: "paid",
+      createdAt: serverTimestamp(), paymentId
     });
 
-    if (created) {
-      Cart.clear();
-      paintChrome();
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({ ecommerce: null });
-      window.dataLayer.push({
-        event: "purchase",
-        ecommerce: {
-          transaction_id: paymentId, currency: "KRW", value: totalPrice,
-          items: items.map(i => ({
-            item_id: i.productId, item_name: i.name,
-            price: i.price, quantity: i.quantity
-          }))
-        }
-      });
-    }
-    result.textContent = "주문이 접수되었습니다";
-    const idLine = document.getElementById("order-payment-id");
-    idLine.textContent = "paymentId: " + paymentId;
-    idLine.hidden = false;
+    localStorage.setItem(completedKey, "1");
+    Cart.clear();
+    paintChrome();
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({ ecommerce: null });
+    window.dataLayer.push({
+      event: "purchase",
+      ecommerce: {
+        transaction_id: paymentId, currency: "KRW", value: totalPrice,
+        items: items.map(i => ({
+          item_id: i.productId, item_name: i.name,
+          price: i.price, quantity: i.quantity
+        }))
+      }
+    });
+    showSuccess();
   } catch (error) {
     result.textContent = String(error);
   }
+}
+
+function showSuccess() {
+  result.textContent = "주문이 접수되었습니다";
+  const idLine = document.getElementById("order-payment-id");
+  idLine.textContent = "paymentId: " + paymentId;
+  idLine.hidden = false;
 }
 
 receivePayment();
