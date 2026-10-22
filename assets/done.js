@@ -65,9 +65,11 @@ async function receivePayment() {
 }
 
 function showSuccess() {
-  result.textContent = "주문이 접수되었습니다";
+  document.getElementById("order-title").textContent = "주문이 접수되었습니다";
+  document.getElementById("order-success-description").hidden = false;
+  result.textContent = "";
   const idLine = document.getElementById("order-payment-id");
-  idLine.textContent = "paymentId: " + paymentId;
+  idLine.textContent = "결제 ID: " + paymentId;
   idLine.hidden = false;
 }
 
