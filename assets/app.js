@@ -225,7 +225,6 @@ function paintCheckout() {
 
     const paidItems = Cart.read();
     const paidTotal = Cart.total();
-    const doneUrl = new URL("done.html", location.href);
 
     const paymentId = "HARU-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
     const paymentIdLine = document.querySelector("#payment-id");
@@ -249,18 +248,14 @@ function paintCheckout() {
         totalAmount: paidTotal,
         currency: "CURRENCY_KRW",
         payMethod: "CARD",
-        customData: { items: paidItems.map(({ id, qty }) => ({ id, qty })) },
-        redirectUrl: doneUrl.href
+        customData: { items: paidItems.map(({ id, qty }) => ({ id, qty })) }
       });
-      if (result) {
-        for (const key of ["paymentId", "code", "message"]) {
-          if (result[key] != null) doneUrl.searchParams.set(key, result[key]);
-        }
-        location.href = doneUrl.href;
-      }
+      resultBox.textContent = typeof result === "string"
+        ? result : String(JSON.stringify(result, null, 2));
+      paymentIdLine.textContent = "paymentId: " + (result?.paymentId ?? paymentId);
     } catch (error) {
       resultBox.textContent = error instanceof Error
-        ? error.message
+        ? String(error)
         : typeof error === "string" ? error : String(JSON.stringify(error, null, 2));
     } finally {
       resultBox.hidden = false;
