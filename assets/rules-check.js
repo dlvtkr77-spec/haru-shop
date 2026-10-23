@@ -1,10 +1,12 @@
 import { auth } from "./auth.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
 import {
   getFirestore, collection, getDocsFromServer, query, where, limit, doc, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const db = getFirestore(auth.app);
+const calcOrderTotal = httpsCallable(getFunctions(auth.app, "us-central1"), "calcOrderTotal");
 const login = document.getElementById("rules-login");
 const content = document.getElementById("rules-content");
 const identity = document.getElementById("rules-identity");
@@ -89,3 +91,17 @@ bindAction("edit-product", "product-result", async (user, result, isCurrent) => 
   await updateDoc(doc(db, "products", "p1"), { price: 0 });
   if (isCurrent()) result.textContent = "문서 ID: p1\nprice: 0";
 });
+
+function bindTotalAction(buttonId, resultId, data) {
+  bindAction(buttonId, resultId, async (user, result, isCurrent) => {
+    try {
+      const response = await calcOrderTotal(data);
+      if (isCurrent()) result.textContent = String(response.data.totalPrice);
+    } catch (error) {
+      if (isCurrent()) result.textContent = error.message;
+    }
+  });
+}
+
+bindTotalAction("ask-total", "total-result", { productId: "p1", quantity: 2 });
+bindTotalAction("ask-changed-price", "changed-price-result", { productId: "p1", quantity: 2, price: 100 });
