@@ -1,4 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { savePushToken } from "./push-tokens.js";
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword,
   signInWithEmailAndPassword, signOut, sendEmailVerification, reload,
@@ -107,6 +108,7 @@ if (mypageLogout) mypageLogout.append(logoutButton());
 
 export const authReady = new Promise((resolve, reject) => {
   onAuthStateChanged(auth, user => {
+    if (user) void savePushToken(auth, { skipRecent: true });
     account.replaceChildren();
     if (user) {
       const email = document.createElement("span");

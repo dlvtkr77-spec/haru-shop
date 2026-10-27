@@ -1,4 +1,7 @@
-// 주문 성공 후에만 호출합니다. 토큰은 발급하지 않습니다.
+import { auth } from "./auth.js";
+import { savePushToken } from "./push-tokens.js";
+
+// 주문 성공 후에만 호출합니다.
 export function showOrderNotifications(anchor, orderId) {
   document.getElementById("order-notifications")?.remove();
   if (!("Notification" in window) || !window.isSecureContext) return;
@@ -43,6 +46,7 @@ export function showOrderNotifications(anchor, orderId) {
         const permission = await Notification.requestPermission();
         console.log("알림 권한 결과: " + permission);
         render();
+        if (permission === "granted") await savePushToken(auth);
       } catch (error) {
         console.error("알림 권한 요청에 실패했습니다.", error);
         accept.disabled = false;
