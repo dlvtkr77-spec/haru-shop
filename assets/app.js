@@ -3,6 +3,13 @@
    이 파일은 고치지 않아도 됩니다. (상품은 shop.js 에 있습니다)
    =========================================================== */
 
+// 공통 화면에서 알림 수신용 서비스 워커를 등록합니다.
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/firebase-messaging-sw.js").catch(error => {
+    console.warn("알림 서비스 워커 등록에 실패했습니다.", error);
+  });
+}
+
 const won = n => n.toLocaleString("ko-KR") + "원";
 const findProduct = id => PRODUCTS.find(p => p.id === id);
 const qs = key => new URLSearchParams(location.search).get(key);
