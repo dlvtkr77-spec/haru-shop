@@ -1,4 +1,5 @@
 import { auth, authReady } from "./auth.js";
+import { showOrderNotifications } from "./order-notifications.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, collection, query, where, orderBy, limit, startAfter, getDocsFromServer,
@@ -133,6 +134,7 @@ if (orderNow) orderNow.addEventListener("click", async () => {
       return true;
     });
     orderStatus.textContent = ordered ? "주문했습니다." : "재고가 없습니다";
+    if (ordered) showOrderNotifications(orderStatus, orderRef.id);
   } catch (error) {
     orderStatus.textContent = String(error);
   } finally {

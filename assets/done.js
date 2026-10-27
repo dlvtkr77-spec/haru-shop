@@ -1,4 +1,5 @@
 import { auth, authReady } from "./auth.js";
+import { showOrderNotifications } from "./order-notifications.js";
 import {
   getFirestore, doc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -71,6 +72,7 @@ function showSuccess() {
   const idLine = document.getElementById("order-payment-id");
   idLine.textContent = "결제 ID: " + paymentId;
   idLine.hidden = false;
+  showOrderNotifications(idLine, paymentId);
 }
 
 receivePayment();
