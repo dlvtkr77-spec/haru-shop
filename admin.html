@@ -9,6 +9,12 @@
   <style>
     [hidden] { display: none !important; }
     #admin-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+    .product-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .product-form { display: grid; gap: 10px; margin: 16px 0; }
+    .product-form label { display: grid; gap: 4px; }
     .btn:disabled { opacity: .6; cursor: wait; }
   </style>
 <!-- Google Tag Manager -->
@@ -31,11 +37,25 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <button class="btn" id="grant-owner" type="button" hidden>주인 명찰 받기</button>
     <p id="admin-error" role="alert" hidden></p>
     <p><button class="btn ghost" id="refresh-role" type="button" hidden>다시 확인</button></p>
+    <section id="products-admin" hidden>
+      <h2>상품 관리</h2>
+      <button class="btn" id="new-product" type="button">새 상품</button>
+      <div id="new-product-editor" hidden></div>
+      <p id="products-status" class="product-error" role="status"></p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>문서 ID</th><th>name</th><th>price</th><th>stock</th><th>품절</th><th>노출</th><th>수정</th><th>오류</th></tr></thead>
+          <tbody id="products-body"></tbody>
+        </table>
+      </div>
+    </section>
   </div></main>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
+
+    import { getFirestore, collection, getDocsFromServer, doc, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
     const firebaseConfig = {
     apiKey: "AIzaSyAwz8FywtpJ20DpWW7Sc3OuvyGm7pDmIpo",
@@ -53,6 +73,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     const grantButton = document.getElementById("grant-owner");
     const refreshButton = document.getElementById("refresh-role");
     const errorBox = document.getElementById("admin-error");
+    const db = getFirestore(app);
+    const productsPanel = document.getElementById("products-admin");
+    const productsBody = document.getElementById("products-body");
+    const productsStatus = document.getElementById("products-status");
+    const newEditor = document.getElementById("new-product-editor");
+    let productsAllowed = false;
     let revision = 0;
     let busy = false;
 
@@ -65,6 +91,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const currentRevision = ++revision;
       const user = auth.currentUser;
       busy = true;
+      productsAllowed = false;
+      productsPanel.hidden = true;
+      productsBody.replaceChildren();
+      newEditor.replaceChildren();
+      newEditor.hidden = true;
       grantButton.hidden = true;
       loginLink.hidden = true;
       refreshButton.hidden = !user;
@@ -83,6 +114,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         const allowed = role === "staff" || role === "admin";
         status.textContent = allowed ? `관리자: ${role}` : "권한이 없습니다";
         grantButton.hidden = allowed;
+        productsAllowed = allowed;
+        productsPanel.hidden = !allowed;
+        if (allowed) void loadAdminProducts(currentRevision);
       } catch (error) {
         if (currentRevision !== revision || auth.currentUser !== user) return;
         status.textContent = grant ? "권한이 없습니다" : "권한을 확인하지 못했습니다";
@@ -96,6 +130,172 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         }
       }
     }
+
+    function element(tag, text) {
+      const node = document.createElement(tag);
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function numericValue(input, label, minimum, integer = false) {
+      const value = Number(input.value);
+      if (!input.value.trim() || !Number.isFinite(value) || value < minimum ||
+          (integer && !Number.isSafeInteger(value))) {
+        throw new Error(`${label}: ${minimum} 이상의 ${integer ? "정수" : "숫자"}를 입력해 주세요.`);
+      }
+      return value;
+    }
+
+    function productForm(product, creating, save) {
+      const form = element("form");
+      form.className = "product-form";
+      const inputs = {};
+      for (const key of creating ? ["name", "price", "summary", "stock"] : ["price", "summary", "stock"]) {
+        const label = element("label", key);
+        const input = element(key === "summary" ? "textarea" : "input");
+        input.value = product[key] ?? "";
+        if (key === "price" || key === "stock") {
+          input.type = "number";
+          input.min = key === "price" ? "0.0000001" : "0";
+          input.step = key === "stock" ? "1" : "any";
+        }
+        input.required = key !== "summary";
+        label.append(input);
+        form.append(label);
+        inputs[key] = input;
+      }
+      const submit = element("button", "저장");
+      submit.type = "submit";
+      submit.className = "btn";
+      const cancel = element("button", "취소");
+      cancel.type = "button";
+      cancel.addEventListener("click", () => form.remove());
+      const error = element("p");
+      error.className = "product-error";
+      error.setAttribute("role", "alert");
+      form.append(submit, cancel, error);
+      form.addEventListener("submit", async event => {
+        event.preventDefault();
+        error.textContent = "";
+        submit.disabled = cancel.disabled = true;
+        try {
+          if (!productsAllowed) throw new Error("권한이 없습니다");
+          const price = numericValue(inputs.price, "price", 0);
+          if (price <= 0) throw new Error("price: 0보다 큰 숫자를 입력해 주세요.");
+          const data = { price, summary: inputs.summary.value, stock: numericValue(inputs.stock, "stock", 0, true) };
+          if (creating) {
+            data.name = inputs.name.value.trim();
+            if (!data.name) throw new Error("name을 입력해 주세요.");
+          }
+          await save(data);
+          form.remove();
+        } catch (failure) {
+          error.textContent = failure?.message ?? String(failure);
+        } finally {
+          submit.disabled = cancel.disabled = false;
+        }
+      });
+      return form;
+    }
+
+    function productRow(snapshot) {
+      const product = snapshot.data();
+      const row = element("tr");
+      const cells = {};
+      for (const key of ["id", "name", "price", "stock"]) {
+        cells[key] = element("td", key === "id" ? snapshot.id : product[key]);
+        row.append(cells[key]);
+      }
+      const soldOut = element("input");
+      soldOut.type = "checkbox";
+      soldOut.checked = product.stock === 0;
+      soldOut.setAttribute("aria-label", `${snapshot.id} 품절`);
+      const visible = element("input");
+      visible.type = "checkbox";
+      visible.checked = product.isVisible === true;
+      visible.setAttribute("aria-label", `${snapshot.id} 노출`);
+      const edit = element("button", "고치기");
+      edit.type = "button";
+      const editCell = element("td");
+      for (const control of [soldOut, visible]) {
+        const cell = element("td"); cell.append(control); row.append(cell);
+      }
+      editCell.append(edit); row.append(editCell);
+      const error = element("td");
+      error.className = "product-error";
+      error.setAttribute("role", "alert");
+      row.append(error);
+      let saving = false;
+      async function save(data) {
+        if (saving) throw new Error("저장 중입니다.");
+        if (!productsAllowed) throw new Error("권한이 없습니다");
+        saving = true;
+        error.textContent = "";
+        soldOut.disabled = visible.disabled = edit.disabled = true;
+        try {
+          await updateDoc(doc(db, "products", snapshot.id), data);
+          Object.assign(product, data);
+          cells.price.textContent = product.price;
+          cells.stock.textContent = product.stock;
+        } catch (failure) {
+          error.textContent = failure?.message ?? String(failure);
+          throw failure;
+        } finally {
+          soldOut.checked = product.stock === 0;
+          visible.checked = product.isVisible === true;
+          saving = false;
+          soldOut.disabled = visible.disabled = edit.disabled = false;
+        }
+      }
+      soldOut.addEventListener("change", async () => {
+        try {
+          let stock = 0;
+          if (!soldOut.checked) {
+            const answer = window.prompt("재고 숫자(1 이상 정수)를 입력해 주세요.");
+            if (answer === null) { soldOut.checked = product.stock === 0; return; }
+            stock = numericValue({value: answer}, "stock", 1, true);
+          }
+          await save({stock});
+        } catch (failure) {
+          error.textContent = failure?.message ?? String(failure);
+          soldOut.checked = product.stock === 0;
+        }
+      });
+      visible.addEventListener("change", async () => {
+        try { await save({isVisible: visible.checked}); }
+        catch (failure) { error.textContent = failure?.message ?? String(failure); }
+      });
+      edit.addEventListener("click", () => {
+        if (editCell.querySelector("form")) return;
+        editCell.append(productForm(product, false, save));
+      });
+      return row;
+    }
+
+    async function loadAdminProducts(expectedRevision) {
+      productsStatus.textContent = "상품을 불러오고 있습니다.";
+      try {
+        const snapshot = await getDocsFromServer(collection(db, "products"));
+        if (!productsAllowed || revision !== expectedRevision) return;
+        productsBody.replaceChildren(...snapshot.docs.map(productRow));
+        productsStatus.textContent = snapshot.empty ? "상품이 없습니다." : "";
+      } catch (failure) {
+        if (productsAllowed && revision === expectedRevision) {
+          productsStatus.textContent = failure?.message ?? String(failure);
+        }
+      }
+    }
+
+    document.getElementById("new-product").addEventListener("click", () => {
+      if (!productsAllowed || newEditor.querySelector("form")) return;
+      newEditor.hidden = false;
+      newEditor.append(productForm({}, true, async data => {
+        await addDoc(collection(db, "products"), {
+          ...data, isVisible: false, createdAt: serverTimestamp()
+        });
+        await loadAdminProducts(revision);
+      }));
+    });
 
     grantButton.addEventListener("click", () => {
       if (!busy) void checkRole(true, true);
