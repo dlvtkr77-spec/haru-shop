@@ -471,7 +471,14 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           const data = log.data();
           const time = data.at?.toDate?.();
           const name = names.get(data.productId) ?? data.productId ?? "";
-          const keys = Array.isArray(data.changedKeys) ? data.changedKeys.join(", ") : String(data.changedKeys ?? "");
+          const fieldLabels = new Map([
+            ["deletedAt", "내림 표시"], ["isVisible", "노출"], ["stock", "재고"],
+            ["price", "가격"], ["name", "이름"], ["summary", "설명"], ["imagePath", "사진"]
+          ]);
+          const labelField = key => fieldLabels.get(key) ?? key;
+          const keys = Array.isArray(data.changedKeys)
+            ? data.changedKeys.map(labelField).join(", ")
+            : String(labelField(data.changedKeys ?? ""));
           return element("li", `${time ? time.toLocaleString("ko-KR") : "시각 없음"} · ${name} · ${data.action ?? ""} · ${keys}`);
         }));
         activityStatus.textContent = snapshot.empty ? "최근 활동이 없습니다." : "";
