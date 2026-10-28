@@ -47,6 +47,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <button type="button" id="filter-all" aria-pressed="true">전체</button>
         <button type="button" id="filter-stock" aria-pressed="false">품절만</button>
         <button type="button" id="filter-hidden" aria-pressed="false">숨김만</button>
+        <button type="button" id="filter-deleted" aria-pressed="false">내린 상품</button>
       </div>
       <p><label>이름 검색 <input id="product-search" type="search"></label>
       <label>정렬 <select id="product-sort">
@@ -56,18 +57,31 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <p id="products-count" role="status">지금 보이는 상품 0개 / 전체 0개</p>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>사진</th><th>문서 ID</th><th>name</th><th>price</th><th>stock</th><th>품절</th><th>노출</th><th>수정</th><th>오류</th></tr></thead>
+          <thead><tr><th>사진</th><th>문서 ID</th><th>name</th><th>price</th><th>stock</th><th>품절</th><th>노출</th><th>수정</th><th>오류</th><th>내리기 · 되돌리기</th></tr></thead>
           <tbody id="products-body"></tbody>
         </table>
       </div>
+      <div id="undo-notices" aria-live="polite"></div>
+      <section aria-labelledby="activity-title">
+        <h2 id="activity-title">최근 활동</h2>
+        <p id="activity-status" class="product-error" role="status"></p>
+        <ul id="activity-list"></ul>
+      </section>
     </section>
+    <dialog id="lower-dialog">
+      <form method="dialog">
+        <p id="lower-message"></p>
+        <button type="submit" value="lower">내리기</button>
+        <button type="submit" value="cancel" autofocus>그만두기</button>
+      </form>
+    </dialog>
   </div></main>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
 
-    import { getFirestore, collection, getDocsFromServer, doc, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocsFromServer, doc, updateDoc, addDoc, serverTimestamp, deleteField, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
     import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 
@@ -99,8 +113,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     const filterButtons = [
       ["all", document.getElementById("filter-all")],
       ["stock", document.getElementById("filter-stock")],
-      ["hidden", document.getElementById("filter-hidden")]
+      ["hidden", document.getElementById("filter-hidden")],
+      ["deleted", document.getElementById("filter-deleted")]
     ];
+    const undoNotices = document.getElementById("undo-notices");
+    const lowerDialog = document.getElementById("lower-dialog");
+    const lowerMessage = document.getElementById("lower-message");
+    const activityList = document.getElementById("activity-list");
+    const activityStatus = document.getElementById("activity-status");
+    let activityRevision = 0;
     let productFilter = "all";
     let productEntries = [];
     let productsAllowed = false;
@@ -120,6 +141,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       productsPanel.hidden = true;
       productsBody.replaceChildren();
       productEntries = [];
+      activityRevision++;
+      activityList.replaceChildren();
+      activityStatus.textContent = "";
+      undoNotices.replaceChildren();
+      if (lowerDialog.open) lowerDialog.close("cancel");
       productsCount.textContent = "지금 보이는 상품 0개 / 전체 0개";
       newEditor.replaceChildren();
       newEditor.hidden = true;
@@ -364,12 +390,103 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           }
         }));
       });
+      const lifecycleCell = element("td");
+      const lower = element("button", "내리기");
+      lower.type = "button";
+      const restore = element("button", "되돌리기");
+      restore.type = "button";
+      lifecycleCell.append(lower, restore);
+      row.append(lifecycleCell);
+      row.refreshLifecycle = () => {
+        const deleted = Object.hasOwn(product, "deletedAt");
+        lower.hidden = deleted;
+        restore.hidden = productFilter !== "deleted" || !deleted;
+      };
+      async function restoreProduct() {
+        await save({ deletedAt: deleteField(), isVisible: true });
+        delete product.deletedAt;
+        renderAdminProducts();
+        void loadRecentActivity(revision);
+      }
+      restore.addEventListener("click", async () => {
+        restore.disabled = true;
+        try { await restoreProduct(); }
+        catch (failure) { error.textContent = failure?.message ?? String(failure); }
+        finally { restore.disabled = false; }
+      });
+      lower.addEventListener("click", async () => {
+        const expectedRevision = revision;
+        const confirmed = await confirmLower(product.name);
+        if (!confirmed || !productsAllowed || expectedRevision !== revision) return;
+        lower.disabled = true;
+        try {
+          await save({ deletedAt: serverTimestamp(), isVisible: false });
+          const notice = element("p", `『${product.name ?? ""}』을 가게에서 내렸습니다. `);
+          const undo = element("button", "되돌리기");
+          undo.type = "button";
+          const noticeError = element("span");
+          noticeError.className = "product-error";
+          undo.addEventListener("click", async () => {
+            if (revision !== expectedRevision || !productsAllowed) return;
+            undo.disabled = true;
+            noticeError.textContent = "";
+            try { await restoreProduct(); notice.remove(); }
+            catch (failure) {
+              noticeError.textContent = failure?.message ?? String(failure);
+              undo.disabled = false;
+            }
+          });
+          notice.append(undo, noticeError);
+          undoNotices.append(notice);
+          void loadRecentActivity(revision);
+        } catch (failure) {
+          error.textContent = failure?.message ?? String(failure);
+        } finally { lower.disabled = false; }
+      });
       return row;
     }
 
+    function confirmLower(name) {
+      if (lowerDialog.open) return Promise.resolve(false);
+      lowerMessage.textContent = `『${name ?? ""}』을 가게에서 내립니다`;
+      lowerDialog.returnValue = "cancel";
+      return new Promise(resolve => {
+        lowerDialog.addEventListener("close", () => {
+          resolve(lowerDialog.returnValue === "lower");
+        }, { once: true });
+        lowerDialog.showModal();
+      });
+    }
+
+    async function loadRecentActivity(expectedRevision) {
+      const currentActivity = ++activityRevision;
+      activityStatus.textContent = "최근 활동을 불러오고 있습니다.";
+      try {
+        const snapshot = await getDocsFromServer(query(
+          collection(db, "adminLogs"), orderBy("at", "desc"), limit(10)
+        ));
+        if (!productsAllowed || revision !== expectedRevision || currentActivity !== activityRevision) return;
+        const names = new Map(productEntries.map(entry => [entry.id, entry.product.name]));
+        activityList.replaceChildren(...snapshot.docs.map(log => {
+          const data = log.data();
+          const time = data.at?.toDate?.();
+          const name = names.get(data.productId) ?? data.productId ?? "";
+          const keys = Array.isArray(data.changedKeys) ? data.changedKeys.join(", ") : String(data.changedKeys ?? "");
+          return element("li", `${time ? time.toLocaleString("ko-KR") : "시각 없음"} · ${name} · ${data.action ?? ""} · ${keys}`);
+        }));
+        activityStatus.textContent = snapshot.empty ? "최근 활동이 없습니다." : "";
+      } catch (failure) {
+        if (productsAllowed && revision === expectedRevision && currentActivity === activityRevision) {
+          activityStatus.textContent = failure?.message ?? String(failure);
+        }
+      }
+    }
+
     function renderAdminProducts() {
+      for (const entry of productEntries) entry.row.refreshLifecycle();
       const search = searchInput.value.toLocaleLowerCase();
       const entries = productEntries.filter(({product}) => {
+        if (productFilter === "deleted" && !Object.hasOwn(product, "deletedAt")) return false;
         if (productFilter === "stock" && product.stock !== 0) return false;
         if (productFilter === "hidden" && product.isVisible !== false) return false;
         return String(product.name ?? "").toLocaleLowerCase().includes(search);
@@ -406,6 +523,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           return { id: snapshot.id, product, row };
         });
         renderAdminProducts();
+        void loadRecentActivity(expectedRevision);
         productsStatus.textContent = snapshot.empty ? "상품이 없습니다." : "";
       } catch (failure) {
         if (productsAllowed && revision === expectedRevision) {
