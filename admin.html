@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>관리 화면 · 하루상점</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <style>
+    [hidden] { display: none !important; }
+    #admin-error { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .btn:disabled { opacity: .6; cursor: wait; }
+  </style>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-KDFLLM3W');</script>
+<!-- End Google Tag Manager -->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KDFLLM3W"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+  <main><div class="wrap">
+    <p id="admin-status" role="status" aria-live="polite">확인 중입니다.</p>
+    <a id="login-link" href="/login.html" hidden>로그인</a>
+    <button class="btn" id="grant-owner" type="button" hidden>주인 명찰 받기</button>
+    <p id="admin-error" role="alert" hidden></p>
+    <p><button class="btn ghost" id="refresh-role" type="button" hidden>다시 확인</button></p>
+  </div></main>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
+
+    const firebaseConfig = {
+    apiKey: "AIzaSyAwz8FywtpJ20DpWW7Sc3OuvyGm7pDmIpo",
+    authDomain: "haru-shop-4083f.firebaseapp.com",
+    projectId: "haru-shop-4083f",
+    storageBucket: "haru-shop-4083f.firebasestorage.app",
+    messagingSenderId: "1058982124810",
+    appId: "1:1058982124810:web:bc866184877dd494442ef3"
+  };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const grantOwnerRole = httpsCallable(getFunctions(app, "us-central1"), "grantOwnerRole");
+    const status = document.getElementById("admin-status");
+    const loginLink = document.getElementById("login-link");
+    const grantButton = document.getElementById("grant-owner");
+    const refreshButton = document.getElementById("refresh-role");
+    const errorBox = document.getElementById("admin-error");
+    let revision = 0;
+    let busy = false;
+
+    function showError(error) {
+      errorBox.textContent = error?.message ?? String(error);
+      errorBox.hidden = false;
+    }
+
+    async function checkRole(forceRefresh = false, grant = false) {
+      const currentRevision = ++revision;
+      const user = auth.currentUser;
+      busy = true;
+      grantButton.hidden = true;
+      loginLink.hidden = true;
+      refreshButton.hidden = !user;
+      grantButton.disabled = true;
+      refreshButton.disabled = true;
+      errorBox.hidden = true;
+      errorBox.textContent = "";
+      status.textContent = user ? "확인 중입니다." : "로그인이 필요합니다";
+      loginLink.hidden = !!user;
+      try {
+        if (!user) return;
+        if (grant) await grantOwnerRole();
+        const token = await getIdTokenResult(user, forceRefresh);
+        if (currentRevision !== revision || auth.currentUser !== user) return;
+        const role = token.claims.role;
+        const allowed = role === "staff" || role === "admin";
+        status.textContent = allowed ? `관리자: ${role}` : "권한이 없습니다";
+        grantButton.hidden = allowed;
+      } catch (error) {
+        if (currentRevision !== revision || auth.currentUser !== user) return;
+        status.textContent = grant ? "권한이 없습니다" : "권한을 확인하지 못했습니다";
+        grantButton.hidden = !grant;
+        showError(error);
+      } finally {
+        if (currentRevision === revision) {
+          busy = false;
+          grantButton.disabled = false;
+          refreshButton.disabled = false;
+        }
+      }
+    }
+
+    grantButton.addEventListener("click", () => {
+      if (!busy) void checkRole(true, true);
+    });
+    refreshButton.addEventListener("click", () => {
+      if (!busy) void checkRole(true);
+    });
+    onAuthStateChanged(auth, () => { void checkRole(); }, showError);
+  </script>
+</body>
+</html>
