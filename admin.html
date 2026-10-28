@@ -12,6 +12,7 @@
     .table-scroll { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+    .product-photo { width: 64px; height: 64px; object-fit: contain; }
     .product-error { white-space: pre-wrap; overflow-wrap: anywhere; }
     .product-form { display: grid; gap: 10px; margin: 16px 0; }
     .product-form label { display: grid; gap: 4px; }
@@ -44,7 +45,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <p id="products-status" class="product-error" role="status"></p>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>문서 ID</th><th>name</th><th>price</th><th>stock</th><th>품절</th><th>노출</th><th>수정</th><th>오류</th></tr></thead>
+          <thead><tr><th>사진</th><th>문서 ID</th><th>name</th><th>price</th><th>stock</th><th>품절</th><th>노출</th><th>수정</th><th>오류</th></tr></thead>
           <tbody id="products-body"></tbody>
         </table>
       </div>
@@ -56,6 +57,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
 
     import { getFirestore, collection, getDocsFromServer, doc, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 
     const firebaseConfig = {
     apiKey: "AIzaSyAwz8FywtpJ20DpWW7Sc3OuvyGm7pDmIpo",
@@ -74,6 +77,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     const refreshButton = document.getElementById("refresh-role");
     const errorBox = document.getElementById("admin-error");
     const db = getFirestore(app);
+    const storage = getStorage(app);
     const productsPanel = document.getElementById("products-admin");
     const productsBody = document.getElementById("products-body");
     const productsStatus = document.getElementById("products-status");
@@ -146,6 +150,44 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       return value;
     }
 
+    function validatePhoto(file) {
+      if (!file) return;
+      if (file.size >= 5 * 1024 * 1024) throw new Error("5MB 넘는 사진은 올릴 수 없습니다");
+      if (!file.type.startsWith("image/")) throw new Error("이미지 파일만 올릴 수 있습니다");
+    }
+
+    async function uploadPhoto(productId, file, progress) {
+      validatePhoto(file);
+      const imagePath = `products/${productId}/main.jpg`;
+      progress.textContent = "올리는 중 … 0%";
+      const task = uploadBytesResumable(ref(storage, imagePath), file);
+      await new Promise((resolve, reject) => {
+        task.on("state_changed", snapshot => {
+          const percent = snapshot.totalBytes === 0 ? 100
+            : Math.round(snapshot.bytesTransferred / snapshot.totalBytes * 100);
+          progress.textContent = `올리는 중 … ${percent}%`;
+        }, reject, resolve);
+      });
+      await updateDoc(doc(db, "products", productId), { imagePath });
+      progress.textContent = "사진을 올리고 저장했습니다.";
+      return imagePath;
+    }
+
+    async function paintPhoto(cell, product) {
+      cell.replaceChildren();
+      if (!product.imagePath) return;
+      try {
+        const url = await getDownloadURL(ref(storage, product.imagePath));
+        const image = element("img");
+        image.className = "product-photo";
+        image.alt = product.name ?? "상품 사진";
+        image.src = url;
+        cell.replaceChildren(image);
+      } catch (failure) {
+        cell.textContent = failure?.message ?? String(failure);
+      }
+    }
+
     function productForm(product, creating, save) {
       const form = element("form");
       form.className = "product-form";
@@ -164,6 +206,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         form.append(label);
         inputs[key] = input;
       }
+      const photoLabel = element("label", "사진");
+      const photo = element("input");
+      photo.type = "file";
+      photo.accept = "image/*";
+      photoLabel.append(photo);
+      const progress = element("p");
+      progress.setAttribute("role", "status");
+      form.append(photoLabel, progress);
+      let submitting = false;
       const submit = element("button", "저장");
       submit.type = "submit";
       submit.className = "btn";
@@ -174,12 +225,21 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       error.className = "product-error";
       error.setAttribute("role", "alert");
       form.append(submit, cancel, error);
+      photo.addEventListener("change", () => {
+        error.textContent = "";
+        try { validatePhoto(photo.files[0]); }
+        catch (failure) { error.textContent = failure.message; }
+      });
       form.addEventListener("submit", async event => {
         event.preventDefault();
+        if (submitting) return;
+        submitting = true;
         error.textContent = "";
-        submit.disabled = cancel.disabled = true;
+        submit.disabled = cancel.disabled = photo.disabled = true;
         try {
           if (!productsAllowed) throw new Error("권한이 없습니다");
+          const file = photo.files[0];
+          validatePhoto(file);
           const price = numericValue(inputs.price, "price", 0);
           if (price <= 0) throw new Error("price: 0보다 큰 숫자를 입력해 주세요.");
           const data = { price, summary: inputs.summary.value, stock: numericValue(inputs.stock, "stock", 0, true) };
@@ -187,12 +247,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             data.name = inputs.name.value.trim();
             if (!data.name) throw new Error("name을 입력해 주세요.");
           }
-          await save(data);
+          await save(data, file, progress);
           form.remove();
         } catch (failure) {
           error.textContent = failure?.message ?? String(failure);
         } finally {
-          submit.disabled = cancel.disabled = false;
+          submitting = false;
+          submit.disabled = cancel.disabled = photo.disabled = false;
         }
       });
       return form;
@@ -201,6 +262,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     function productRow(snapshot) {
       const product = snapshot.data();
       const row = element("tr");
+      const photoCell = element("td");
+      photoCell.className = "product-error";
+      row.append(photoCell);
+      void paintPhoto(photoCell, product);
       const cells = {};
       for (const key of ["id", "name", "price", "stock"]) {
         cells[key] = element("td", key === "id" ? snapshot.id : product[key]);
@@ -267,7 +332,13 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       });
       edit.addEventListener("click", () => {
         if (editCell.querySelector("form")) return;
-        editCell.append(productForm(product, false, save));
+        editCell.append(productForm(product, false, async (data, file, progress) => {
+          await save(data);
+          if (file) {
+            product.imagePath = await uploadPhoto(snapshot.id, file, progress);
+            await paintPhoto(photoCell, product);
+          }
+        }));
       });
       return row;
     }
@@ -289,10 +360,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     document.getElementById("new-product").addEventListener("click", () => {
       if (!productsAllowed || newEditor.querySelector("form")) return;
       newEditor.hidden = false;
-      newEditor.append(productForm({}, true, async data => {
-        await addDoc(collection(db, "products"), {
-          ...data, isVisible: false, createdAt: serverTimestamp()
-        });
+      let createdProduct = null;
+      newEditor.append(productForm({}, true, async (data, file, progress) => {
+        if (!createdProduct) {
+          createdProduct = await addDoc(collection(db, "products"), {
+            ...data, isVisible: false, createdAt: serverTimestamp()
+          });
+        } else {
+          await updateDoc(createdProduct, data);
+        }
+        if (file) await uploadPhoto(createdProduct.id, file, progress);
         await loadAdminProducts(revision);
       }));
     });
