@@ -43,6 +43,17 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <button class="btn" id="new-product" type="button">새 상품</button>
       <div id="new-product-editor" hidden></div>
       <p id="products-status" class="product-error" role="status"></p>
+      <div role="group" aria-label="상품 필터">
+        <button type="button" id="filter-all" aria-pressed="true">전체</button>
+        <button type="button" id="filter-stock" aria-pressed="false">품절만</button>
+        <button type="button" id="filter-hidden" aria-pressed="false">숨김만</button>
+      </div>
+      <p><label>이름 검색 <input id="product-search" type="search"></label>
+      <label>정렬 <select id="product-sort">
+        <option value="stock">재고 적은 순</option>
+        <option value="name">이름순</option>
+      </select></label></p>
+      <p id="products-count" role="status">지금 보이는 상품 0개 / 전체 0개</p>
       <div class="table-scroll">
         <table>
           <thead><tr><th>사진</th><th>문서 ID</th><th>name</th><th>price</th><th>stock</th><th>품절</th><th>노출</th><th>수정</th><th>오류</th></tr></thead>
@@ -82,6 +93,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     const productsBody = document.getElementById("products-body");
     const productsStatus = document.getElementById("products-status");
     const newEditor = document.getElementById("new-product-editor");
+    const searchInput = document.getElementById("product-search");
+    const sortSelect = document.getElementById("product-sort");
+    const productsCount = document.getElementById("products-count");
+    const filterButtons = [
+      ["all", document.getElementById("filter-all")],
+      ["stock", document.getElementById("filter-stock")],
+      ["hidden", document.getElementById("filter-hidden")]
+    ];
+    let productFilter = "all";
+    let productEntries = [];
     let productsAllowed = false;
     let revision = 0;
     let busy = false;
@@ -98,6 +119,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       productsAllowed = false;
       productsPanel.hidden = true;
       productsBody.replaceChildren();
+      productEntries = [];
+      productsCount.textContent = "지금 보이는 상품 0개 / 전체 0개";
       newEditor.replaceChildren();
       newEditor.hidden = true;
       grantButton.hidden = true;
@@ -302,6 +325,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           Object.assign(product, data);
           cells.price.textContent = product.price;
           cells.stock.textContent = product.stock;
+          renderAdminProducts();
         } catch (failure) {
           error.textContent = failure?.message ?? String(failure);
           throw failure;
@@ -343,12 +367,45 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       return row;
     }
 
+    function renderAdminProducts() {
+      const search = searchInput.value.toLocaleLowerCase();
+      const entries = productEntries.filter(({product}) => {
+        if (productFilter === "stock" && product.stock !== 0) return false;
+        if (productFilter === "hidden" && product.isVisible !== false) return false;
+        return String(product.name ?? "").toLocaleLowerCase().includes(search);
+      });
+      entries.sort((a, b) => {
+        const names = String(a.product.name ?? "").localeCompare(String(b.product.name ?? ""), "ko");
+        if (sortSelect.value === "name") return names || a.id.localeCompare(b.id);
+        return (a.product.stock - b.product.stock) || names || a.id.localeCompare(b.id);
+      });
+      productsBody.replaceChildren(...entries.map(entry => entry.row));
+      productsCount.textContent = `지금 보이는 상품 ${entries.length}개 / 전체 ${productEntries.length}개`;
+    }
+
+    for (const [filter, button] of filterButtons) {
+      button.addEventListener("click", () => {
+        productFilter = filter;
+        for (const [value, control] of filterButtons) {
+          control.setAttribute("aria-pressed", String(value === filter));
+        }
+        renderAdminProducts();
+      });
+    }
+    searchInput.addEventListener("input", renderAdminProducts);
+    sortSelect.addEventListener("change", renderAdminProducts);
+
     async function loadAdminProducts(expectedRevision) {
       productsStatus.textContent = "상품을 불러오고 있습니다.";
       try {
         const snapshot = await getDocsFromServer(collection(db, "products"));
         if (!productsAllowed || revision !== expectedRevision) return;
-        productsBody.replaceChildren(...snapshot.docs.map(productRow));
+        productEntries = snapshot.docs.map(snapshot => {
+          const product = snapshot.data();
+          const row = productRow({ id: snapshot.id, data: () => product });
+          return { id: snapshot.id, product, row };
+        });
+        renderAdminProducts();
         productsStatus.textContent = snapshot.empty ? "상품이 없습니다." : "";
       } catch (failure) {
         if (productsAllowed && revision === expectedRevision) {
