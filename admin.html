@@ -38,6 +38,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <button class="btn" id="grant-owner" type="button" hidden>주인 명찰 받기</button>
     <p id="admin-error" role="alert" hidden></p>
     <p><button class="btn ghost" id="refresh-role" type="button" hidden>다시 확인</button></p>
+    <div id="admin-tabs" role="tablist" aria-label="관리 메뉴" hidden>
+      <button id="products-tab" type="button" role="tab" aria-controls="products-admin" aria-selected="true">상품</button>
+      <button id="orders-tab" type="button" role="tab" aria-controls="orders-admin" aria-selected="false">주문</button>
+    </div>
     <section id="products-admin" hidden>
       <h2>상품 관리</h2>
       <button class="btn" id="new-product" type="button">새 상품</button>
@@ -68,6 +72,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <ul id="activity-list"></ul>
       </section>
     </section>
+    <section id="orders-admin" role="tabpanel" aria-labelledby="orders-tab" hidden>
+      <h2>주문</h2>
+      <label>상태 <select id="orders-filter">
+        <option value="">전체</option>
+        <option>paid</option><option>preparing</option><option>shipped</option>
+        <option>delivered</option><option>canceled</option>
+      </select></label>
+      <p id="orders-status" role="status" aria-live="polite"></p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>주문 번호</th><th>금액</th><th>상태</th><th>주문 시각</th></tr></thead>
+        <tbody id="orders-body"></tbody>
+      </table></div>
+      <button id="orders-more" type="button" hidden>더 보기</button>
+      <section id="order-detail" aria-label="주문 상세" aria-live="polite"></section>
+    </section>
+    <dialog id="order-confirm">
+      <form method="dialog">
+        <p id="order-confirm-message"></p>
+        <button type="submit" value="change">바꾸기</button>
+        <button type="submit" value="cancel" autofocus>그만두기</button>
+      </form>
+    </dialog>
     <dialog id="lower-dialog">
       <form method="dialog">
         <p id="lower-message"></p>
@@ -77,6 +103,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </dialog>
   </div></main>
   <script type="module">
+    import { setupOrders } from "./assets/admin-orders.js";
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
@@ -102,6 +129,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     const refreshButton = document.getElementById("refresh-role");
     const errorBox = document.getElementById("admin-error");
     const db = getFirestore(app);
+    const ordersAdmin = setupOrders(db);
     const storage = getStorage(app);
     const productsPanel = document.getElementById("products-admin");
     const productsBody = document.getElementById("products-body");
@@ -138,6 +166,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       const user = auth.currentUser;
       busy = true;
       productsAllowed = false;
+      ordersAdmin.setAllowed(false);
       productsPanel.hidden = true;
       productsBody.replaceChildren();
       productEntries = [];
@@ -169,6 +198,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         grantButton.hidden = allowed;
         productsAllowed = allowed;
         productsPanel.hidden = !allowed;
+        ordersAdmin.setAllowed(allowed);
         if (allowed) void loadAdminProducts(currentRevision);
       } catch (error) {
         if (currentRevision !== revision || auth.currentUser !== user) return;
