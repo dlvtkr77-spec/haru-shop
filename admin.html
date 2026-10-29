@@ -41,6 +41,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div id="admin-tabs" role="tablist" aria-label="관리 메뉴" hidden>
       <button id="products-tab" type="button" role="tab" aria-controls="products-admin" aria-selected="true">상품</button>
       <button id="orders-tab" type="button" role="tab" aria-controls="orders-admin" aria-selected="false">주문</button>
+      <button id="sales-tab" type="button" role="tab" aria-controls="sales-admin" aria-selected="false">매출</button>
     </div>
     <section id="products-admin" hidden>
       <h2>상품 관리</h2>
@@ -87,6 +88,16 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <button id="orders-more" type="button" hidden>더 보기</button>
       <section id="order-detail" aria-label="주문 상세" aria-live="polite"></section>
     </section>
+    <section id="sales-admin" role="tabpanel" aria-labelledby="sales-tab" hidden>
+      <h2>매출</h2>
+      <p id="sales-status" role="status" aria-live="polite"></p>
+      <p><span id="sales-summary"></span> <span id="sales-counted-at"></span></p>
+      <div style="position:relative; height:340px"><canvas id="sales-chart" role="img" aria-label="최근 7일 매출 막대 차트. 상세 수치는 아래 표에서 확인할 수 있습니다."></canvas></div>
+      <div class="table-scroll"><table>
+        <thead id="sales-head"></thead>
+        <tbody id="sales-body"></tbody>
+      </table></div>
+    </section>
     <dialog id="order-confirm">
       <form method="dialog">
         <p id="order-confirm-message"></p>
@@ -104,6 +115,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div></main>
   <script type="module">
     import { setupOrders } from "./assets/admin-orders.js";
+    import { setupSales } from "./assets/admin-sales.js";
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
     import { getAuth, onAuthStateChanged, getIdTokenResult } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
@@ -130,6 +142,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     const errorBox = document.getElementById("admin-error");
     const db = getFirestore(app);
     const ordersAdmin = setupOrders(db);
+    const salesAdmin = setupSales(db);
     const storage = getStorage(app);
     const productsPanel = document.getElementById("products-admin");
     const productsBody = document.getElementById("products-body");
@@ -167,6 +180,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       busy = true;
       productsAllowed = false;
       ordersAdmin.setAllowed(false);
+      salesAdmin.setAllowed(false);
       productsPanel.hidden = true;
       productsBody.replaceChildren();
       productEntries = [];
@@ -199,6 +213,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         productsAllowed = allowed;
         productsPanel.hidden = !allowed;
         ordersAdmin.setAllowed(allowed);
+        salesAdmin.setAllowed(allowed);
         if (allowed) void loadAdminProducts(currentRevision);
       } catch (error) {
         if (currentRevision !== revision || auth.currentUser !== user) return;
